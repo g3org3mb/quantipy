@@ -1324,7 +1324,7 @@ class DataSet(object):
         new_name : str
             The new variable name.
         array_item: dict
-            Item position and new name for item. Example: {4: 'q5_4'} then 
+            Item position and new name for item. Example: {4: 'q5_4'} then
             q5[{q5_4}].q5_grid is renamed to q5_4.
 
 
@@ -1348,7 +1348,7 @@ class DataSet(object):
                 del sets[name]
                 o_set_entry = 'masks@{}'.format(name)
                 n_set_entry = 'masks@{}'.format(new_name)
-                n_datafile_items = [i if i != o_set_entry else n_set_entry 
+                n_datafile_items = [i if i != o_set_entry else n_set_entry
                                     for i in sets['data file']['items']]
                 sets['data file']['items'] = n_datafile_items
 
@@ -1396,7 +1396,7 @@ class DataSet(object):
 
         else:
             if not new_name:
-                raise ValueError("'new_name' is needed to rename column variables")    
+                raise ValueError("'new_name' is needed to rename column variables")
             if new_name in data.columns:
                 msg = "Cannot rename '{}' into '{}'. Column name already exists!"
                 raise ValueError(msg.format(name, new_name))
@@ -1406,7 +1406,7 @@ class DataSet(object):
             columns[new_name]['name'] = new_name
             o_set_entry = 'columns@{}'.format(name)
             n_set_entry = 'columns@{}'.format(new_name)
-            n_datafile_items = [i if i != o_set_entry else n_set_entry 
+            n_datafile_items = [i if i != o_set_entry else n_set_entry
                                   for i in sets['data file']['items']]
             sets['data file']['items'] = n_datafile_items
         return None
@@ -3628,11 +3628,11 @@ class DataSet(object):
         if verbose:
             if not len(err_df) == 0:
                 print msg
-                return err_df.sort()
+                return err_df.sort_index()
             else:
                 print 'no issues found in dataset'
         else:
-            return err_df.sort()
+            return err_df.sort_index()
 
 
     def validate_backup(self, text=True, categorical=True, codes=True):
