@@ -1313,17 +1313,18 @@ class DataSet(object):
         self._data[name] = self._data[name].astype(str)
         return None
 
-    def rename(self, name, new_name=None, array_item=None):
+    def rename(self, name, new_name=None, array_items=None):
         """
         Change meta and data column name references of the variable defintion.
 
         Parameters
         ----------
         name : str
-            The originating column variable name keyed in ``meta['columns']``.
+            The originating column variable name keyed in ``meta['columns']``
+            or ``meta['masks']``.
         new_name : str
             The new variable name.
-        array_item: dict
+        array_items: dict
             Item position and new name for item. Example: {4: 'q5_4'} then
             q5[{q5_4}].q5_grid is renamed to q5_4.
 
@@ -1368,16 +1369,16 @@ class DataSet(object):
                 for item in items:
                     columns[item]['values'] = values
 
-            if array_item:
+            if array_items:
                 # update meta['sets']
                 if not new_name: new_name = name
                 variables = {}
 
                 new_items = []
                 for x, item in enumerate(sets[new_name]['items'], 1):
-                    if x in array_item:
-                        new_items.append('columns@{}'.format(array_item[x]))
-                        variables[item] = array_item[x]
+                    if x in array_items:
+                        new_items.append('columns@{}'.format(array_items[x]))
+                        variables[item] = array_items[x]
                     else:
                         new_items.append(item)
                 sets[new_name]['items'] = new_items
