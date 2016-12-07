@@ -597,6 +597,50 @@ class DataSet(object):
                 self.text_key = None
         return None
 
+    def from_excel(self, path_xlsx, merge=True, unique_key='identity'):
+        """
+        Converts excel files to a dataset or/and merges variables.
+
+        Parameters
+        ----------
+        path_xlsx : str
+            Path where the excel file is stored. The file must have exactly
+            one sheet with data.
+        merge : bool
+            If True the new data from the excel file will be merged on the
+            dataset.
+        unique_key : str
+            If ``merge=True`` an hmerge is done on this variable.
+
+        Returns
+        -------
+        new_dataset : ``quantipy.DataSet``
+            Contains only the data from excel.
+            If ``merge=True`` dataset is modified inplace.
+        """
+
+        xlsx = pd.read_excel(path_xlsx, sheetname=None)
+
+        if not len(xlsx.keys()) == 1:
+            raise KeyError("The XLSX must have exactly 1 sheet.")
+        key = xlsx.keys()[0]
+        sheet = xlsx[key]
+        if merge and not unique_key in sheet.columns:
+            raise KeyError(
+            "The coding sheet must a column named '{}'.".format(unique_key))
+
+        new_ds = qp.DataSet('excel_data')
+        new_ds._data = pd.DataFrame()
+        new_ds._meta = new_ds.start_meta()
+        for col in sheet.columns.tolist():
+            new_ds.add_meta(col, 'int', col)
+        new_ds._data = sheet
+
+        if merge:
+            self.hmerge(new_ds, on=unique_key, verbose=False)
+
+        return new_ds
+
     def _set_file_info(self, path_data, path_meta=None):
         self.path = '/'.join(path_data.split('/')[:-1]) + '/'
         try:
@@ -764,6 +808,7 @@ class DataSet(object):
     # ------------------------------------------------------------------------
     # extending / merging
     # ------------------------------------------------------------------------
+
     def hmerge(self, dataset, on=None, left_on=None, right_on=None,
                overwrite_text=False, from_set=None, inplace=True, verbose=True):
 
@@ -1182,7 +1227,7 @@ class DataSet(object):
             msg = 'Cannot convert variable {} of type {} to float!'
             raise TypeError(msg.format(name, org_type))
         if org_type == 'single':
-            self.as_int(name)
+            self.as_int(name, False)
         if org_type == 'int':
             self._meta['columns'][name]['type'] = 'float'
             self._data[name] = self._data[name].apply(
@@ -2000,7 +2045,7 @@ class DataSet(object):
             raise ValueError('No valid axis provided!')
         for ax in axis:
             tk = 'x edits' if ax == 'x' else 'y edits'
-            self.set_column_text(name, edited_text, tk)
+            self.set_variable_text(name, edited_text, tk)
 
     def set_val_text_edit(self, name, edited_vals, axis='x'):
         """
@@ -2279,7 +2324,7 @@ class DataSet(object):
         # WILL BE REMOVED SOON
         self.copy(name, suffix, copy_data)
 
-    def copy(self, name, suffix='rec', copy_data=True):
+    def copy(self, name, suffix='rec', copy_data=True, slicer=None):
         """
         Copy meta and case data of the variable defintion given per ``name``.
 
@@ -2291,6 +2336,11 @@ class DataSet(object):
         suffix : str, default 'rec'
             The new variable name will be constructed by suffixing the original
             ``name`` with ``_suffix``, e.g. ``'age_rec``.
+        copy_data: boolean
+            The new variable assumes the ``data`` of the original variable.
+        condition: dict
+            If the data is copied it is possible to filter the data with 
+            complex logic. Example: condition={'q1': not_any([99])}
         Returns
         -------
         None
@@ -2318,7 +2368,12 @@ class DataSet(object):
             self._meta['sets'][copy_name] = {'items': mask_set}
         else:
             if copy_data:
-                self._data[copy_name] = self._data[name].copy()
+                if slicer:
+                    self._data[copy_name] = np.NaN
+                    slicer = self.slicer(slicer)
+                    self[slicer, [copy_name]] = self._data[name].copy()
+                else:
+                    self._data[copy_name] = self._data[name].copy()
             else:
                 self._data[copy_name] = np.NaN
             meta_copy = org_copy.deepcopy(self._meta['columns'][name])
@@ -2788,10 +2843,10 @@ class DataSet(object):
         cat_id = 0
         for codes, texts in zipped:
             cat_id += 1
-            label = val_text_sep.join(texts)
+            cat_label = val_text_sep.join(texts)
             rec = [{v: [c]} for v, c in zip(variables, codes)]
             rec = intersection(rec)
-            categories.append((cat_id, label, rec))
+            categories.append((cat_id, cat_label, rec))
         self.derive(name, qtype, label, categories)
         return None
 
@@ -3408,7 +3463,11 @@ class DataSet(object):
         if not self._is_array(var):
             vartype = self._get_type(var)
             if vartype == 'delimited set':
-                dummy_data = self[var].str.get_dummies(';')
+                try:
+                    dummy_data = self[var].str.get_dummies(';')
+                except:
+                    dummy_data = self._data[[var]]
+                    dummy_data.columns = [0]
                 if self.meta is not None:
                     var_codes = self._get_valuemap(var, non_mapped='codes')
                     dummy_data.columns = [int(col) for col in dummy_data.columns]
@@ -3791,7 +3850,7 @@ class DataSet(object):
             msg = msg + '\n  - not the same label.'
         if not self._get_type(var1) == check_ds._get_type(var2):
             msg = msg + '\n  - not the same type.'
-        if self._has_categorical_data(var1) and self._has_categorical_data(var2):
+        if self._has_categorical_data(var1) and check_ds._has_categorical_data(var2):
             if not (self._get_valuemap(var1, None, text_key) ==
                     check_ds._get_valuemap(var2, None, text_key)):
                 msg = msg + '\n  - not the same values object.'
